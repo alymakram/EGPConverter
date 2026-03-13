@@ -478,7 +478,7 @@ const OWNER        = "0xdBF45AF1cD37deBEDD059BEe0525289d2b5E5CF4";
 const BASE_ID      = 8453;
 const BASE_TEST_ID = 84532;
 let CONTRACT_ADDR  = new URLSearchParams(location.search).get("contract")
-                     || localStorage.getItem("egp_contract") || "";
+                     || localStorage.getItem("egp_contract") || "0x3CBBB492C619aED30f1bc1Eab12A5cC8E3b6D27b";
 
 // Multiple free APIs tried in sequence — first success wins
 // All return USD-based rates; we derive EGP cross-rates from USD/EGP
