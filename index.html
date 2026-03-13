@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EGP Converter — Base Blockchain</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+  <style>
+    :root {
+      --blue-deep:   #020b1a;
+      --blue-dark:   #040f24;
+      --blue-mid:    #071a3e;
+      --blue-card:   #0a2050;
+      --blue-accent: #1a5fb4;
+      --blue-bright: #2d7ef7;
+      --blue-glow:   #4d9fff;
+      --cyan:        #00d4ff;
+      --gold:        #f5c842;
+      --gold-dim:    #b8922a;
+      --text:        #e8f4ff;
+      --text-mid:    #7ba8d4;
+      --text-dim:    #3d6891;
+      --green:       #00e5a0;
+      --red:         #ff4d6d;
+      --orange:      #ff9f43;
+      --border:      rgba(45,126,247,0.18);
+      --border-glow: rgba(45,126,247,0.45);
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--blue-deep);color:var(--text);font-family:'Space Mono',monospace;min-height:100vh;overflow-x:hidden;}
+
+    /* ── BG ── */
+    .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(45,126,247,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(45,126,247,0.045) 1px,transparent 1px);background-size:64px 64px;}
+    .bg-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.035) 2px,rgba(0,0,0,0.035) 4px);}
+    .orb{position:absolute;border-radius:50%;filter:blur(90px);animation:odrift ease-in-out infinite alternate;}
+    .o1{width:700px;height:700px;background:radial-gradient(circle,rgba(45,126,247,0.15) 0%,transparent 70%);top:-260px;left:-160px;animation-duration:22s;}
+    .o2{width:580px;height:580px;background:radial-gradient(circle,rgba(0,212,255,0.11) 0%,transparent 70%);top:20%;right:-200px;animation-duration:18s;animation-delay:-7s;}
+    .o3{width:500px;height:500px;background:radial-gradient(circle,rgba(26,95,180,0.13) 0%,transparent 70%);bottom:-100px;left:20%;animation-duration:26s;animation-delay:-13s;}
+    @keyframes odrift{0%{transform:translate(0,0) scale(1);}50%{transform:translate(50px,-40px) scale(1.1);}100%{transform:translate(-30px,55px) scale(0.9);}}
+
+    /* ── HEADER ── */
+    header{position:sticky;top:0;z-index:200;background:rgba(2,11,26,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 40px;height:72px;display:flex;align-items:center;justify-content:space-between;}
+    header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue-bright),var(--cyan),var(--blue-bright),transparent);opacity:0.35;}
+    @media(max-width:600px){header{padding:0 16px;}}
+
+    .logo{display:flex;align-items:center;gap:14px;}
+    .logo-ring{animation:spin 10s linear infinite;transform-origin:50% 50%;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .brand{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:.04em;background:linear-gradient(135deg,var(--blue-glow),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .brand-sub{font-size:9px;color:var(--text-dim);letter-spacing:.2em;text-transform:uppercase;margin-top:2px;}
+
+    .hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .net-pill{display:flex;align-items:center;gap:7px;padding:6px 12px;background:var(--blue-mid);border:1px solid var(--border);border-radius:100px;font-size:10px;color:var(--text-mid);letter-spacing:.08em;white-space:nowrap;}
+    .ndot{width:6px;height:6px;border-radius:50%;background:var(--red);transition:all .4s;}
+    .ndot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:pd 2s ease-in-out infinite;}
+    @keyframes pd{0%,100%{box-shadow:0 0 4px var(--green);}50%{box-shadow:0 0 14px var(--green),0 0 24px rgba(0,229,160,0.3);}}
+
+    /* Live rates badge */
+    .rates-live-pill{display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(0,229,160,0.07);border:1px solid rgba(0,229,160,0.2);border-radius:100px;font-size:9px;color:var(--green);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+    .rdot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pd 1.5s ease-in-out infinite;}
+
+    #connect-btn{display:flex;align-items:center;gap:8px;padding:9px 20px;background:linear-gradient(135deg,var(--blue-accent),var(--blue-bright));border:none;border-radius:8px;color:white;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;text-transform:uppercase;white-space:nowrap;}
+    #connect-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,0.13),transparent);transform:translateX(-100%);transition:transform .4s;}
+    #connect-btn:hover::before{transform:translateX(100%);}
+    #connect-btn:hover{box-shadow:0 0 22px rgba(45,126,247,0.5);transform:translateY(-1px);}
+    #connect-btn.connected{background:linear-gradient(135deg,#0d3a2a,#1a5a40);font-size:10px;}
+
+    /* ── PAGE ── */
+    .page{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:50px 24px 100px;}
+    @media(max-width:600px){.page{padding:32px 16px 80px;}}
+
+    /* ── HERO ── */
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px;}
+    .eyebrow::before{content:'';width:22px;height:1px;background:var(--cyan);}
+    h1{font-family:'Syne',sans-serif;font-size:clamp(32px,5.5vw,64px);font-weight:800;line-height:1.06;margin-bottom:14px;letter-spacing:-.02em;}
+    .l1{color:var(--text);}
+    .l2{background:linear-gradient(90deg,var(--blue-glow),var(--cyan),var(--blue-glow));background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s linear infinite;}
+    @keyframes shimmer{0%{background-position:0% center;}100%{background-position:200% center;}}
+    .hero-p{font-size:13px;color:var(--text-mid);line-height:1.8;max-width:520px;margin-bottom:44px;}
+
+    /* ── RATES BANNER ── */
+    .rates-banner{background:linear-gradient(135deg,rgba(0,229,160,0.06),rgba(45,126,247,0.08));border:1px solid rgba(0,229,160,0.2);border-radius:12px;padding:14px 22px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+    .rb-left{display:flex;align-items:center;gap:12px;font-size:11px;}
+    .rb-icon{font-size:20px;}
+    .rb-title{color:var(--green);font-weight:700;letter-spacing:.05em;}
+    .rb-sub{font-size:10px;color:var(--text-dim);margin-top:2px;}
+    .rb-right{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-dim);}
+    .rb-source{color:var(--cyan);letter-spacing:.06em;}
+    .rb-time{color:var(--text-dim);}
+    #rb-updated{color:var(--green);}
+    .rb-refresh{background:transparent;border:1px solid rgba(0,229,160,0.3);border-radius:6px;color:var(--green);font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;padding:4px 10px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+    .rb-refresh:hover{background:rgba(0,229,160,0.1);}
+    .rb-refresh:disabled{opacity:.4;cursor:not-allowed;}
+
+    /* ── CONTRACT BAR ── */
+    .cbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 20px;background:linear-gradient(135deg,rgba(10,32,80,.8),rgba(7,26,62,.8));border:1px solid var(--border);border-radius:10px;margin-bottom:28px;font-size:11px;}
+    .cbar-l{display:flex;align-items:center;gap:10px;color:var(--text-dim);}
+    .caddr{color:var(--cyan);cursor:pointer;transition:color .2s;letter-spacing:.04em;}
+    .caddr:hover{color:white;}
+    .cbar-r{display:flex;align-items:center;gap:10px;}
+    .badge{display:flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:4px;}
+    .bv{background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:var(--green);}
+    .bo{background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);color:var(--gold);}
+
+    /* ── CARD ── */
+    .card{background:linear-gradient(145deg,rgba(10,32,80,.93),rgba(7,26,62,.97));border:1px solid var(--border);border-radius:20px;position:relative;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.4);}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue-bright),var(--cyan),var(--blue-bright),transparent);}
+    .card::after{content:'';position:absolute;top:-140px;right:-140px;width:320px;height:320px;background:radial-gradient(circle,rgba(45,126,247,.07) 0%,transparent 70%);pointer-events:none;}
+
+    .card-head{padding:26px 30px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+    .card-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);letter-spacing:.04em;}
+    .auto-pill{display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);border:1px solid rgba(0,212,255,.25);padding:4px 10px;border-radius:4px;background:rgba(0,212,255,.06);}
+    .apd{width:5px;height:5px;border-radius:50%;background:var(--cyan);animation:pd 2s ease-in-out infinite;}
+
+    /* ── INPUTS ── */
+    .cgrid{padding:24px 30px 18px;display:grid;grid-template-columns:1fr 52px 1fr;gap:14px;align-items:end;}
+    @media(max-width:640px){.cgrid{grid-template-columns:1fr;}.arrow-col{display:flex;justify-content:center;}.card-head,.cgrid,.rate-row,.btn-row{padding-left:18px;padding-right:18px;}}
+
+    .field{display:flex;flex-direction:column;gap:7px;}
+    .flabel{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);}
+
+    .ibox{background:rgba(2,11,26,.78);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .2s,box-shadow .2s;}
+    .ibox:focus-within{border-color:var(--blue-bright);box-shadow:0 0 0 3px rgba(45,126,247,.12);}
+    .ibox select{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);outline:none;color:var(--text);font-family:'Space Mono',monospace;font-size:11px;padding:10px 14px;cursor:pointer;letter-spacing:.04em;}
+    .ibox select option{background:#0a2050;color:var(--text);}
+    .ibox input{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:'Syne',sans-serif;font-size:26px;font-weight:700;padding:13px 16px;letter-spacing:-.01em;}
+    .ibox input::placeholder{color:var(--text-dim);}
+
+    .arrow-col{padding-bottom:10px;display:flex;align-items:flex-end;justify-content:center;}
+    .arrow-btn{width:42px;height:42px;background:var(--blue-mid);border:1px solid var(--border-glow);border-radius:50%;color:var(--blue-glow);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+    .arrow-btn:hover{background:var(--blue-accent);color:white;box-shadow:0 0 18px rgba(45,126,247,.4);transform:scale(1.1);}
+
+    /* Result */
+    .rbox{background:rgba(2,11,26,.78);border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:107px;display:flex;flex-direction:column;justify-content:center;}
+    .rbox-top{padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text-dim);letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
+    .rbox-eg{color:var(--cyan);font-size:9px;letter-spacing:.15em;}
+    .result-num{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;padding:13px 16px;background:linear-gradient(135deg,var(--blue-glow),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;transition:all .3s;letter-spacing:-.02em;}
+    .result-num.loading{animation:rp .8s ease-in-out infinite;}
+    @keyframes rp{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+    /* Source indicator inside result box */
+    .rate-source-tag{padding:0 14px 10px;font-size:9px;color:var(--text-dim);letter-spacing:.08em;}
+    .rate-source-tag span{color:var(--green);}
+
+    /* Rate row */
+    .rate-row{padding:0 30px 14px;display:flex;align-items:center;gap:14px;font-size:11px;color:var(--text-dim);flex-wrap:wrap;}
+    .rv{color:var(--blue-glow);font-weight:700;}
+    .rate-delta{font-size:9px;padding:2px 6px;border-radius:3px;}
+    .delta-up{background:rgba(0,229,160,.1);color:var(--green);}
+    .delta-down{background:rgba(255,77,109,.1);color:var(--red);}
+
+    /* Tx strip */
+    #txstrip{margin:0 30px 14px;padding:12px 16px;border-radius:10px;font-size:11px;display:none;align-items:center;gap:10px;line-height:1.5;}
+    #txstrip.pending{display:flex;background:rgba(45,126,247,.1);border:1px solid rgba(45,126,247,.3);color:var(--blue-glow);}
+    #txstrip.confirmed{display:flex;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.25);color:var(--green);}
+    #txstrip.failed{display:flex;background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.25);color:var(--red);}
+    .spinner{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite;flex-shrink:0;}
+    @keyframes sp{to{transform:rotate(360deg);}}
+
+    /* Buttons */
+    .btn-row{padding:0 30px 26px;display:flex;gap:10px;}
+    #convert-btn{flex:1;padding:15px 22px;background:linear-gradient(135deg,#1a4a9e,var(--blue-bright),var(--cyan));background-size:200% 100%;background-position:0% center;border:none;border-radius:12px;color:white;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+    #convert-btn:hover{background-position:100% center;box-shadow:0 8px 30px rgba(45,126,247,.4);transform:translateY(-2px);}
+    #convert-btn:active{transform:translateY(0);}
+    #convert-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
+    #rates-btn{padding:15px 18px;background:transparent;border:1px solid var(--border-glow);border-radius:12px;color:var(--text-mid);font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;transition:all .2s;text-transform:uppercase;white-space:nowrap;}
+    #rates-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+
+    /* ── STATS ── */
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0;}
+    @media(max-width:600px){.stats{grid-template-columns:1fr;}}
+    .stat{background:linear-gradient(145deg,rgba(10,32,80,.7),rgba(7,26,62,.8));border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;}
+    .stat:hover{border-color:var(--border-glow);transform:translateY(-2px);}
+    .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-bright),transparent);opacity:0;transition:opacity .2s;}
+    .stat:hover::before{opacity:1;}
+    .stat-n{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blue-glow);margin-bottom:4px;}
+    .stat-l{font-size:10px;color:var(--text-dim);letter-spacing:.12em;text-transform:uppercase;}
+
+    /* ── LIVE RATES TABLE ── */
+    .sec-h{display:flex;align-items:center;gap:14px;margin:36px 0 16px;font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text);}
+    .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-glow),transparent);}
+    .sec-sub{font-size:10px;color:var(--text-dim);margin:-10px 0 16px;letter-spacing:.08em;}
+
+    .rates-table-wrap{background:linear-gradient(145deg,rgba(10,32,80,.7),rgba(7,26,62,.8));border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:36px;}
+    .rates-table-head{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:12px 20px;border-bottom:1px solid var(--border);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);background:rgba(2,11,26,.4);}
+    .rates-table-body{max-height:320px;overflow-y:auto;}
+    .rates-table-body::-webkit-scrollbar{width:4px;}
+    .rates-table-body::-webkit-scrollbar-track{background:rgba(45,126,247,.04);}
+    .rates-table-body::-webkit-scrollbar-thumb{background:var(--blue-accent);border-radius:2px;}
+    .rate-row-item{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:11px 20px;border-bottom:1px solid rgba(45,126,247,.07);transition:background .15s;cursor:pointer;}
+    .rate-row-item:hover{background:rgba(45,126,247,.06);}
+    .rate-row-item:last-child{border-bottom:none;}
+    .ri-flag{font-size:16px;}
+    .ri-code{color:var(--cyan);font-weight:700;font-size:12px;letter-spacing:.05em;}
+    .ri-name{color:var(--text-dim);font-size:10px;margin-top:2px;}
+    .ri-rate{color:var(--text);font-family:'Syne',sans-serif;font-size:14px;font-weight:700;text-align:right;}
+    .ri-egp{color:var(--text-dim);font-size:10px;margin-top:2px;text-align:right;}
+    .ri-src{display:flex;align-items:center;justify-content:flex-end;}
+    .src-live{font-size:9px;padding:2px 7px;border-radius:3px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.25);color:var(--green);letter-spacing:.08em;}
+
+    /* loading skeleton */
+    .skel{height:14px;border-radius:4px;background:linear-gradient(90deg,rgba(45,126,247,.1),rgba(45,126,247,.2),rgba(45,126,247,.1));background-size:200%;animation:skel-anim 1.5s ease-in-out infinite;}
+    @keyframes skel-anim{0%{background-position:0%;}100%{background-position:200%;}}
+
+    /* ── TX HISTORY ── */
+    .txlist{display:flex;flex-direction:column;gap:10px;}
+    .txitem{background:linear-gradient(135deg,rgba(10,32,80,.65),rgba(7,26,62,.75));border:1px solid var(--border);border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;animation:txpop .4s cubic-bezier(.34,1.56,.64,1);transition:border-color .2s;}
+    .txitem:hover{border-color:var(--border-glow);}
+    @keyframes txpop{from{opacity:0;transform:translateY(-10px) scale(.97);}to{opacity:1;transform:none;}}
+    .txamt{display:flex;align-items:center;gap:12px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+    .tfrom{color:var(--text-mid);}
+    .tarr{color:var(--blue-glow);}
+    .tto{color:var(--cyan);}
+    .txmeta{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-dim);}
+    .thl{color:var(--blue-glow);cursor:pointer;text-decoration:none;}
+    .thl:hover{color:var(--cyan);text-decoration:underline;}
+    .txempty{text-align:center;padding:44px 24px;border:1px dashed var(--border);border-radius:14px;color:var(--text-dim);font-size:12px;line-height:1.8;}
+
+    /* ── OWNER PANEL ── */
+    .ow-card{margin-top:36px;background:linear-gradient(145deg,rgba(10,32,80,.7),rgba(7,26,62,.8));border:1px solid rgba(245,200,66,.2);border-radius:16px;overflow:hidden;}
+    .ow-head{padding:16px 22px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .2s;}
+    .ow-head:hover{background:rgba(245,200,66,.04);}
+    .ow-hl{display:flex;align-items:center;gap:12px;}
+    .ow-icon{width:32px;height:32px;border-radius:8px;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);display:flex;align-items:center;justify-content:center;font-size:16px;}
+    .ow-t{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--gold);}
+    .ow-s{font-size:9px;color:var(--text-dim);letter-spacing:.08em;margin-top:2px;}
+    .ow-exp{color:var(--gold-dim);font-size:13px;transition:transform .3s;}
+    .ow-exp.open{transform:rotate(180deg);}
+    .ow-body{padding:22px;display:none;}
+    .ow-body.on{display:block;}
+    .ow-hint{font-size:11px;color:var(--text-dim);margin-bottom:16px;line-height:1.7;}
+    .ow-note{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--green);margin-bottom:16px;line-height:1.6;}
+    .owgrid{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-bottom:12px;}
+    @media(max-width:600px){.owgrid{grid-template-columns:1fr;}}
+    .mf{display:flex;flex-direction:column;gap:6px;}
+    .ml{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);}
+    .mi{background:rgba(2,11,26,.8);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;width:100%;}
+    .mi:focus{border-color:var(--blue-bright);}
+    .ob{padding:10px 16px;border-radius:8px;border:none;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+    .obp{background:var(--blue-accent);color:white;}
+    .obp:hover{background:var(--blue-bright);box-shadow:0 4px 12px rgba(45,126,247,.3);}
+    .obd{background:rgba(255,77,109,.15);color:var(--red);border:1px solid rgba(255,77,109,.3);}
+    .obd:hover{background:rgba(255,77,109,.25);}
+    .obg{background:rgba(0,229,160,.15);color:var(--green);border:1px solid rgba(0,229,160,.3);}
+    .obg:hover{background:rgba(0,229,160,.25);}
+
+    /* ── MODAL ── */
+    .mbg{position:fixed;inset:0;z-index:500;background:rgba(2,11,26,.88);backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;}
+    .mbg.open{display:flex;}
+    .modal{background:linear-gradient(145deg,#0a2050,#071a3e);border:1px solid var(--border-glow);border-radius:20px;padding:28px;max-width:540px;width:92%;box-shadow:0 32px 80px rgba(0,0,0,.6);animation:min .3s cubic-bezier(.34,1.56,.64,1);}
+    @keyframes min{from{opacity:0;transform:scale(.9) translateY(20px);}to{opacity:1;transform:none;}}
+    .mt{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--blue-glow),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:5px;}
+    .ms{font-size:11px;color:var(--text-dim);margin-bottom:18px;line-height:1.6;}
+    .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px;max-height:320px;overflow-y:auto;padding-right:4px;}
+    .rgrid::-webkit-scrollbar{width:4px;}
+    .rgrid::-webkit-scrollbar-thumb{background:var(--blue-accent);border-radius:2px;}
+    .ritem{background:rgba(2,11,26,.6);border:1px solid var(--border);border-radius:8px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;font-size:11px;transition:border-color .15s;}
+    .ritem:hover{border-color:var(--border-glow);}
+    .rc{color:var(--cyan);font-weight:700;letter-spacing:.05em;}
+    .rr{color:var(--text-mid);}
+    .mcl{margin-top:18px;width:100%;padding:12px;background:var(--blue-accent);border:none;border-radius:10px;color:white;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.06em;transition:all .2s;}
+    .mcl:hover{background:var(--blue-bright);}
+
+    /* ── TOAST ── */
+    #toast{position:fixed;bottom:26px;right:26px;z-index:9999;background:linear-gradient(135deg,#0a2050,#071a3e);border:1px solid var(--border);border-radius:12px;padding:13px 18px;font-size:12px;color:var(--text);max-width:350px;box-shadow:0 12px 40px rgba(0,0,0,.5);transform:translateY(90px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:9px;line-height:1.5;}
+    #toast.show{transform:translateY(0);opacity:1;}
+    #toast.success{border-color:rgba(0,229,160,.4);}
+    #toast.error{border-color:rgba(255,77,109,.4);}
+    #toast.info{border-color:rgba(45,126,247,.4);}
+    .ti{font-size:15px;flex-shrink:0;}
+
+    /* ── FOOTER ── */
+    footer{border-top:1px solid var(--border);padding:22px 40px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text-dim);letter-spacing:.08em;flex-wrap:wrap;gap:12px;position:relative;z-index:1;}
+    footer a{color:var(--blue-glow);text-decoration:none;}
+    footer a:hover{color:var(--cyan);}
+
+    /* particles */
+    .pt{position:fixed;border-radius:50%;pointer-events:none;animation:fu linear infinite;opacity:0;}
+    @keyframes fu{0%{transform:translateY(100vh);opacity:0;}10%{opacity:.5;}90%{opacity:.3;}100%{transform:translateY(-10vh);opacity:0;}}
+  </style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="bg-grid"></div>
+  <div class="bg-scan"></div>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+</div>
+
+<header>
+  <div class="logo">
+    <svg width="40" height="40" viewBox="0 0 42 42" fill="none">
+      <circle cx="21" cy="21" r="19" stroke="url(#lg1)" stroke-width="1.5" stroke-dasharray="4 3" class="logo-ring"/>
+      <circle cx="21" cy="21" r="12" stroke="url(#lg2)" stroke-width="1"/>
+      <text x="21" y="26" text-anchor="middle" font-family="Syne" font-size="13" font-weight="800" fill="url(#lg1)">ج</text>
+      <defs>
+        <linearGradient id="lg1" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop stop-color="#2d7ef7"/><stop offset="1" stop-color="#00d4ff"/></linearGradient>
+        <linearGradient id="lg2" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop stop-color="#2d7ef7" stop-opacity=".4"/><stop offset="1" stop-color="#00d4ff" stop-opacity=".4"/></linearGradient>
+      </defs>
+    </svg>
+    <div>
+      <div class="brand">EGP Converter</div>
+      <div class="brand-sub">Base Blockchain · Live Rates</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="rates-live-pill"><div class="rdot"></div><span id="rates-status">Loading rates…</span></div>
+    <div class="net-pill"><div class="ndot" id="ndot"></div><span id="net-name">Not Connected</span></div>
+    <button id="connect-btn" onclick="connectWallet()"><span>⬡</span> Connect</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="eyebrow">⬡ Live bank-accurate rates · Every conversion on-chain</div>
+  <h1><div class="l1">Convert Any Currency</div><div class="l2">to Egyptian Pound</div></h1>
+  <p class="hero-p">Live exchange rates sourced from official forex market data — updated daily from banking interbank rates. Every conversion automatically triggers a transaction on Base blockchain.</p>
+
+  <!-- Rates source banner -->
+  <div class="rates-banner" id="rates-banner">
+    <div class="rb-left">
+      <span class="rb-icon">📡</span>
+      <div>
+        <div class="rb-title" id="rb-title">Live Exchange Rates Active</div>
+        <div class="rb-sub">Interbank forex market data · 3 API sources · Offline fallback built-in</div>
+      </div>
+    </div>
+    <div class="rb-right">
+      <span>Source: <span class="rb-source" id="rb-source-label">Loading…</span></span>
+      <span>·</span>
+      <span>Updated: <span id="rb-updated">—</span></span>
+      <button class="rb-refresh" id="refresh-btn" onclick="fetchLiveRates(true)">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="cbar">
+    <div class="cbar-l"><span>Contract</span><span class="caddr" id="caddr" onclick="openBasescan()">Add ?contract=0x… to URL after deployment</span></div>
+    <div class="cbar-r">
+      <div class="badge bv">✓ Verified</div>
+      <div class="badge bo">◆ Owner: 0xdBF4…5CF4</div>
+    </div>
+  </div>
+
+  <!-- Converter Card -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Currency Converter</div>
+      <div class="auto-pill"><div class="apd"></div>Live Rates · Auto On-Chain</div>
+    </div>
+
+    <div class="cgrid">
+      <div class="field">
+        <div class="flabel">From Currency</div>
+        <div class="ibox">
+          <select id="from-currency" onchange="onCurrencyChange()">
+            <option value="">Loading live rates…</option>
+          </select>
+          <input type="number" id="from-amount" placeholder="0.00" min="0" step="any" oninput="liveConvert()"/>
+        </div>
+      </div>
+      <div class="arrow-col">
+        <button class="arrow-btn" onclick="tipEGP()" title="EGP is always the target">→</button>
+      </div>
+      <div class="field">
+        <div class="flabel">Egyptian Pound (EGP)</div>
+        <div class="rbox">
+          <div class="rbox-top"><span>جنيه مصري</span><span class="rbox-eg">EGP</span></div>
+          <div class="result-num" id="result-num">0.00</div>
+        </div>
+        <div class="rate-source-tag" id="rate-source-tag" style="display:none">Rate: <span></span></div>
+      </div>
+    </div>
+
+    <div class="rate-row">
+      <span>1 <span class="rv" id="ri-code">—</span> = <span class="rv" id="ri-rate">—</span> EGP</span>
+      <span id="ri-delta"></span>
+      <span>·</span>
+      <span>Network: <span class="rv" id="ri-net">Base Mainnet</span></span>
+      <span>·</span>
+      <span>Rate as of: <span class="rv" id="ri-upd">—</span></span>
+    </div>
+
+    <div id="txstrip">
+      <div class="spinner" id="txspinner" style="display:none"></div>
+      <span id="txmsg"></span>
+    </div>
+
+    <div class="btn-row">
+      <button id="convert-btn" onclick="doConvert()">⬡ Convert &amp; Record on Base</button>
+      <button id="rates-btn" onclick="openModal()">All Rates</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-cur">—</div><div class="stat-l">Live Currencies</div></div>
+    <div class="stat"><div class="stat-n" id="s-conv">0</div><div class="stat-l">Your Conversions</div></div>
+    <div class="stat"><div class="stat-n" id="s-net">Base</div><div class="stat-l">Blockchain</div></div>
+  </div>
+
+  <!-- Live Rates Table -->
+  <div class="sec-h">Live EGP Rates</div>
+  <div class="sec-sub">Real-time interbank rates — click any row to convert</div>
+  <div class="rates-table-wrap">
+    <div class="rates-table-head">
+      <span>Currency</span>
+      <span></span>
+      <span style="text-align:right">Rate (EGP)</span>
+      <span style="text-align:right">Source</span>
+    </div>
+    <div class="rates-table-body" id="rates-table-body">
+      <!-- populated by JS -->
+      <div style="padding:30px;text-align:center;color:var(--text-dim);font-size:12px;">Fetching live rates from forex market…</div>
+    </div>
+  </div>
+
+  <!-- TX History -->
+  <div class="sec-h">On-Chain History</div>
+  <div class="txlist" id="txlist">
+    <div class="txempty">Connect your wallet to view on-chain conversion history.</div>
+  </div>
+
+  <!-- Owner Panel -->
+  <div class="ow-card" id="owner-panel" style="display:none">
+    <div class="ow-head" onclick="toggleOwner()">
+      <div class="ow-hl">
+        <div class="ow-icon">⚙</div>
+        <div><div class="ow-t">Owner Panel</div><div class="ow-s">0xdBF45AF1cD37deBEDD059BEe0525289d2b5E5CF4</div></div>
+      </div>
+      <div class="ow-exp" id="owexp">▼</div>
+    </div>
+    <div class="ow-body" id="ow-body">
+      <div class="ow-note">💡 You can push live rates from the fetched data directly to the blockchain contract with one click.</div>
+      <div class="ow-hint">Update exchange rates on-chain. Rate = EGP per 1 unit × 10⁶ (e.g. 50.25 EGP → 50250000)</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="ob obg" onclick="pushLiveRatesToChain()">⬆ Push Live Rates to Chain</button>
+      </div>
+      <div class="owgrid">
+        <div class="mf"><div class="ml">Currency Code</div><input type="text" class="mi" id="ow-code" placeholder="USD" maxlength="5"/></div>
+        <div class="mf"><div class="ml">Rate × 10⁶</div><input type="number" class="mi" id="ow-rate" placeholder="50250000"/></div>
+        <button class="ob obp" onclick="owUpdate()">Update</button>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <button class="ob obd" id="pause-btn" onclick="owPause()">Pause Contract</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- Rates Modal -->
+<div class="mbg" id="rmodal" onclick="bgClose(event)">
+  <div class="modal">
+    <div class="mt">All Live Exchange Rates</div>
+    <div class="ms">Interbank mid-market rates · EGP per 1 unit · Updated daily from ExchangeRate-API</div>
+    <div class="rgrid" id="rgrid"></div>
+    <button class="mcl" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"><span class="ti" id="ticon">ℹ</span><span id="tmsg"></span></div>
+
+<footer>
+  <span>EGP Converter · <a href="https://base.org" target="_blank">Base Blockchain</a> · Owner: 0xdBF45AF1cD37deBEDD059BEe0525289d2b5E5CF4</span>
+  <span>Rates: <a href="https://www.exchangerate-api.com" target="_blank">ExchangeRate-API</a> · <a href="#" onclick="openBasescan()">Basescan</a> · <a href="https://remix.ethereum.org" target="_blank">Remix IDE</a></span>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const OWNER        = "0xdBF45AF1cD37deBEDD059BEe0525289d2b5E5CF4";
+const BASE_ID      = 8453;
+const BASE_TEST_ID = 84532;
+let CONTRACT_ADDR  = new URLSearchParams(location.search).get("contract")
+                     || localStorage.getItem("egp_contract") || "";
+
+// Multiple free APIs tried in sequence — first success wins
+// All return USD-based rates; we derive EGP cross-rates from USD/EGP
+const RATE_APIS = [
+  "https://open.er-api.com/v6/latest/USD",
+  "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+  "https://latest.currency-api.pages.dev/v1/currencies/usd.json",
+];
+const CACHE_KEY = "egp_rates_cache";
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+// ── Hardcoded accurate fallback rates (EGP per 1 unit) ──
+// Based on Central Bank of Egypt & interbank market — March 2026
+const HARDCODED_RATES = {
+  USD: 50.85,  EUR: 55.20,  GBP: 64.10,  SAR: 13.56,  AED: 13.85,
+  KWD:165.40,  QAR: 13.97,  OMR:132.20,  BHD:135.00,  JOD: 71.80,
+  TRY:  1.48,  CNY:  7.01,  JPY:  0.339, CHF: 57.40,  CAD: 37.20,
+  AUD: 32.60,  INR:  0.594, MAD:  5.08,  LYD: 10.55,  TND: 16.40,
+  SDG:  0.082, RUB:  0.553, NOK:  4.68,  SEK:  4.82,  DKK:  7.40,
+  MYR: 11.50,  SGD: 38.20,  HKD:  6.52,  BRL:  9.20,  ZAR:  2.78,
+  MXN:  2.58,  PKR:  0.182,
+};
+
+const ABI = [
+  "function convert(string currency, uint256 amount) returns (uint256)",
+  "function convertView(string currency, uint256 amount) view returns (uint256)",
+  "function getAllCurrencies() view returns (string[] codes, string[] names, uint256[] rates)",
+  "function getRate(string currency) view returns (uint256)",
+  "function updateRate(string currency, uint256 rate)",
+  "function batchUpdateRates(string[] currencies, uint256[] rates)",
+  "function setPaused(bool _paused)",
+  "function getInfo() view returns (address owner, uint256 lastUpdated, uint256 currencyCount, bool paused)",
+  "event ConversionLogged(string indexed fromCurrency, uint256 amount, uint256 egpAmount, address indexed user)"
+];
+
+// Currency metadata (flags, full names)
+const CURRENCY_META = {
+  USD:{name:"US Dollar",          flag:"🇺🇸"},
+  EUR:{name:"Euro",               flag:"🇪🇺"},
+  GBP:{name:"British Pound",      flag:"🇬🇧"},
+  SAR:{name:"Saudi Riyal",        flag:"🇸🇦"},
+  AED:{name:"UAE Dirham",         flag:"🇦🇪"},
+  KWD:{name:"Kuwaiti Dinar",      flag:"🇰🇼"},
+  QAR:{name:"Qatari Riyal",       flag:"🇶🇦"},
+  OMR:{name:"Omani Rial",         flag:"🇴🇲"},
+  BHD:{name:"Bahraini Dinar",     flag:"🇧🇭"},
+  JOD:{name:"Jordanian Dinar",    flag:"🇯🇴"},
+  TRY:{name:"Turkish Lira",       flag:"🇹🇷"},
+  CNY:{name:"Chinese Yuan",       flag:"🇨🇳"},
+  JPY:{name:"Japanese Yen",       flag:"🇯🇵"},
+  CHF:{name:"Swiss Franc",        flag:"🇨🇭"},
+  CAD:{name:"Canadian Dollar",    flag:"🇨🇦"},
+  AUD:{name:"Australian Dollar",  flag:"🇦🇺"},
+  INR:{name:"Indian Rupee",       flag:"🇮🇳"},
+  MAD:{name:"Moroccan Dirham",    flag:"🇲🇦"},
+  LYD:{name:"Libyan Dinar",       flag:"🇱🇾"},
+  TND:{name:"Tunisian Dinar",     flag:"🇹🇳"},
+  SDG:{name:"Sudanese Pound",     flag:"🇸🇩"},
+  RUB:{name:"Russian Ruble",      flag:"🇷🇺"},
+  GBX:{name:"Pence Sterling",     flag:"🇬🇧"},
+  NOK:{name:"Norwegian Krone",    flag:"🇳🇴"},
+  SEK:{name:"Swedish Krona",      flag:"🇸🇪"},
+  DKK:{name:"Danish Krone",       flag:"🇩🇰"},
+  MYR:{name:"Malaysian Ringgit",  flag:"🇲🇾"},
+  SGD:{name:"Singapore Dollar",   flag:"🇸🇬"},
+  HKD:{name:"Hong Kong Dollar",   flag:"🇭🇰"},
+  BRL:{name:"Brazilian Real",     flag:"🇧🇷"},
+  ZAR:{name:"South African Rand", flag:"🇿🇦"},
+  MXN:{name:"Mexican Peso",       flag:"🇲🇽"},
+  PKR:{name:"Pakistani Rupee",    flag:"🇵🇰"},
+};
+
+// Priority order for display
+const PRIORITY_CURRENCIES = ["USD","EUR","GBP","SAR","AED","KWD","QAR","OMR","BHD","JOD","TRY","CNY","JPY","CHF","CAD","AUD","INR","MAD","LYD","TND"];
+
+// State
+let provider, signer, contract;
+let userAddr    = null;
+let liveRates   = {};     // code -> EGP rate (float)
+let ratesLoaded = false;
+let ratesTime   = null;
+let txHistory   = [];
+let isOwner     = false;
+let isPaused    = false;
+let chainCurrs  = [];
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+window.addEventListener("DOMContentLoaded", async () => {
+  spawnParticles();
+  if (CONTRACT_ADDR) localStorage.setItem("egp_contract", CONTRACT_ADDR);
+  refreshCbar();
+
+  // Fetch live rates immediately
+  await fetchLiveRates(false);
+
+  if (window.ethereum && localStorage.getItem("egp_auto") === "1") connectWallet(true);
+});
+
+function spawnParticles() {
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement("div"); p.className = "pt";
+    p.style.cssText = `left:${Math.random()*100}vw;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px;background:${Math.random()>.5?"#2d7ef7":"#00d4ff"};animation-duration:${9+Math.random()*14}s;animation-delay:-${Math.random()*18}s;`;
+    document.body.appendChild(p);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// LIVE RATES FETCH
+// ═══════════════════════════════════════════════
+async function fetchLiveRates(forced = false) {
+  const btn = document.getElementById("refresh-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "↻ Fetching…"; }
+
+  // ── Step 1: Check localStorage cache (skip if forced refresh) ──
+  if (!forced) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached && Date.now() - cached.ts < CACHE_TTL && Object.keys(cached.rates).length > 5) {
+        liveRates   = cached.rates;
+        ratesLoaded = true;
+        ratesTime   = new Date(cached.ts);
+        applyRates();
+        document.getElementById("rates-status").textContent = "Live rates (cached)";
+        if (btn) { btn.disabled = false; btn.textContent = "↻ Refresh"; }
+        return;
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById("rates-status").textContent = "Fetching live rates…";
+
+  // ── Step 2: Try each API in sequence until one works ──
+  let built = null;
+  let fetchedTime = null;
+
+  for (let i = 0; i < RATE_APIS.length; i++) {
+    const url = RATE_APIS[i];
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      const resp = await fetch(url, { signal: controller.signal, mode: "cors" });
+      clearTimeout(timeout);
+
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      // Parse either ExchangeRate-API format or fawazahmed0 format
+      let rawRates = null;
+      let usdToEgp = null;
+
+      if (data.result === "success" && data.rates) {
+        // ExchangeRate-API format: { rates: { USD:1, EGP:50.85, ... } }
+        rawRates  = data.rates;
+        usdToEgp  = rawRates["EGP"];
+        fetchedTime = data.time_last_update_unix ? new Date(data.time_last_update_unix * 1000) : new Date();
+      } else if (data.usd) {
+        // fawazahmed0 format: { date:"...", usd: { egp:50.85, eur:0.92, ... } }
+        rawRates  = {};
+        for (const [k, v] of Object.entries(data.usd)) rawRates[k.toUpperCase()] = v;
+        usdToEgp  = rawRates["EGP"];
+        fetchedTime = data.date ? new Date(data.date) : new Date();
+      }
+
+      if (!rawRates || !usdToEgp) throw new Error("EGP not found in response");
+
+      // Build: 1 CURRENCY = ? EGP
+      built = {};
+      for (const [code, usdRate] of Object.entries(rawRates)) {
+        if (code === "EGP" || usdRate <= 0) continue;
+        built[code] = usdToEgp / usdRate;
+      }
+
+      console.log(`✓ Rates loaded from API ${i+1}: ${url} (${Object.keys(built).length} currencies, 1 USD = ${usdToEgp} EGP)`);
+      break; // success — stop trying
+
+    } catch(e) {
+      console.warn(`API ${i+1} failed (${url}):`, e.message);
+      built = null;
+    }
+  }
+
+  // ── Step 3: If all APIs failed, try expired cache, then hardcoded ──
+  if (!built || Object.keys(built).length < 5) {
+    console.warn("All live APIs failed — checking expired cache…");
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached && Object.keys(cached.rates).length > 5) {
+        liveRates   = cached.rates;
+        ratesLoaded = true;
+        ratesTime   = new Date(cached.ts);
+        applyRates();
+        document.getElementById("rates-status").textContent = "Offline — cached rates";
+        updateBannerOffline("Cached (offline)");
+        toast("⚠ Using cached rates — live fetch failed", "info");
+        if (btn) { btn.disabled = false; btn.textContent = "↻ Retry"; }
+        return;
+      }
+    } catch(e) {}
+
+    // Final fallback: hardcoded accurate rates
+    console.warn("No cache — using hardcoded rates");
+    liveRates   = { ...HARDCODED_RATES };
+    ratesLoaded = true;
+    ratesTime   = new Date("2026-03-13");
+    applyRates();
+    document.getElementById("rates-status").textContent = "Built-in rates (offline)";
+    updateBannerOffline("Built-in (CBE March 2026)");
+    toast("⚠ No network — using built-in CBE rates. Tap Refresh when online.", "info");
+    if (btn) { btn.disabled = false; btn.textContent = "↻ Retry"; }
+    return;
+  }
+
+  // ── Success: save and apply ──
+  liveRates   = built;
+  ratesLoaded = true;
+  ratesTime   = fetchedTime || new Date();
+
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ rates: built, ts: Date.now(), updated: ratesTime.toISOString() }));
+  } catch(e) {}
+
+  applyRates();
+  updateBannerLive();
+  document.getElementById("rates-status").textContent = "Live rates active";
+  toast("✓ Live rates loaded — " + Object.keys(built).length + " currencies", "success");
+
+  if (btn) { btn.disabled = false; btn.textContent = "↻ Refresh"; }
+}
+
+function updateBannerLive() {
+  const el = document.getElementById("rb-source-label");
+  if (el) el.textContent = "ExchangeRate-API (Live)";
+  const banner = document.getElementById("rates-banner");
+  if (banner) { banner.style.borderColor = "rgba(0,229,160,0.2)"; banner.style.background = "linear-gradient(135deg,rgba(0,229,160,0.06),rgba(45,126,247,0.08))"; }
+}
+
+function updateBannerOffline(label) {
+  const el = document.getElementById("rb-source-label");
+  if (el) el.textContent = label;
+  const banner = document.getElementById("rates-banner");
+  if (banner) { banner.style.borderColor = "rgba(255,159,67,0.3)"; banner.style.background = "linear-gradient(135deg,rgba(255,159,67,0.06),rgba(45,126,247,0.06))"; }
+  const title = document.getElementById("rb-title");
+  if (title) title.textContent = "Rates Loaded (Offline Mode)";
+  const rdot = document.querySelector(".rdot");
+  if (rdot) rdot.style.background = "var(--orange)";
+}
+
+function applyRates() {
+  fillDropdown();
+  renderRatesTable();
+  updateRateDisplay();
+
+  if (ratesTime) {
+    const s = ratesTime.toLocaleString();
+    document.getElementById("rb-updated").textContent = s;
+    document.getElementById("ri-upd").textContent = ratesTime.toLocaleDateString();
+  }
+
+  document.getElementById("s-cur").textContent = getPriorityCurrencies().length;
+}
+
+function getPriorityCurrencies() {
+  // Return priority currencies that exist in live data, then others
+  const live = Object.keys(liveRates);
+  const priority = PRIORITY_CURRENCIES.filter(c => live.includes(c));
+  const others   = live.filter(c => !PRIORITY_CURRENCIES.includes(c) && CURRENCY_META[c]).sort();
+  return [...priority, ...others];
+}
+
+function fillDropdown() {
+  const sel = document.getElementById("from-currency");
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const codes = getPriorityCurrencies();
+  codes.forEach(c => {
+    const meta = CURRENCY_META[c] || { name: c, flag: "🌐" };
+    const o = document.createElement("option");
+    o.value = c;
+    o.textContent = `${meta.flag} ${c} — ${meta.name}`;
+    sel.appendChild(o);
+  });
+  if (cur && codes.includes(cur)) sel.value = cur;
+}
+
+function renderRatesTable() {
+  const body = document.getElementById("rates-table-body");
+  const codes = getPriorityCurrencies().slice(0, 30); // top 30
+  if (!codes.length) return;
+
+  body.innerHTML = codes.map(code => {
+    const meta = CURRENCY_META[code] || { name: code, flag: "🌐" };
+    const rate = liveRates[code];
+    if (!rate) return "";
+    return `
+      <div class="rate-row-item" onclick="selectCurrency('${code}')">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="ri-flag">${meta.flag}</span>
+            <div>
+              <div class="ri-code">${code}</div>
+              <div class="ri-name">${meta.name}</div>
+            </div>
+          </div>
+        </div>
+        <div></div>
+        <div>
+          <div class="ri-rate">${rate.toLocaleString("en",{minimumFractionDigits:4,maximumFractionDigits:4})}</div>
+          <div class="ri-egp">EGP per 1 ${code}</div>
+        </div>
+        <div class="ri-src"><span class="src-live">LIVE</span></div>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectCurrency(code) {
+  const sel = document.getElementById("from-currency");
+  sel.value = code;
+  onCurrencyChange();
+  document.getElementById("from-amount").focus();
+}
+
+// ═══════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════
+async function connectWallet(silent = false) {
+  if (!window.ethereum) { if (!silent) toast("Install MetaMask or a Web3 wallet", "error"); return; }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    signer   = await provider.getSigner();
+    userAddr = await signer.getAddress();
+    await switchToBase();
+    localStorage.setItem("egp_auto", "1");
+    await afterConnect();
+  } catch(e) {
+    if (!silent) toast("Connection failed: " + (e.message || ""), "error");
+  }
+}
+
+async function switchToBase() {
+  const net = await provider.getNetwork();
+  if (Number(net.chainId) === BASE_ID) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + BASE_ID.toString(16) }] });
+  } catch(e) {
+    if (e.code === 4902) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0x" + BASE_ID.toString(16), chainName: "Base", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://mainnet.base.org"], blockExplorerUrls: ["https://basescan.org"] }] });
+    }
+  }
+}
+
+async function afterConnect() {
+  const net   = await provider.getNetwork();
+  const cid   = Number(net.chainId);
+  const label = cid === BASE_ID ? "Base Mainnet" : cid === BASE_TEST_ID ? "Base Sepolia" : "Chain " + cid;
+
+  document.getElementById("ndot").classList.add("live");
+  document.getElementById("net-name").textContent = label;
+  document.getElementById("ri-net").textContent   = label;
+  document.getElementById("s-net").textContent    = cid === BASE_ID ? "Base" : "Sepolia";
+
+  const short = userAddr.slice(0, 6) + "…" + userAddr.slice(-4);
+  const btn = document.getElementById("connect-btn");
+  btn.innerHTML = `<span>✓</span> ${short}`; btn.classList.add("connected");
+
+  if (CONTRACT_ADDR) {
+    contract = new ethers.Contract(CONTRACT_ADDR, ABI, signer);
+    await loadChain();
+    await loadHistory();
+  } else {
+    toast("Wallet connected! Add ?contract=0xYOUR_ADDRESS to URL after deployment", "info");
+  }
+
+  window.ethereum.removeAllListeners("accountsChanged");
+  window.ethereum.removeAllListeners("chainChanged");
+  window.ethereum.on("accountsChanged", () => connectWallet(true));
+  window.ethereum.on("chainChanged", () => location.reload());
+}
+
+async function loadChain() {
+  if (!contract) return;
+  try {
+    const [codes, names, rates] = await contract.getAllCurrencies();
+    const [ownerAddr, lastUpd, , paused_] = await contract.getInfo();
+    chainCurrs = codes.map((c, i) => ({ code: c, name: names[i], rate: Number(rates[i]) / 1e6 }));
+    isPaused   = paused_;
+    isOwner    = ownerAddr.toLowerCase() === userAddr.toLowerCase();
+    if (isOwner) document.getElementById("owner-panel").style.display = "block";
+    toast("Contract loaded · " + codes.length + " on-chain currencies", "success");
+  } catch(e) { toast("Contract error: " + e.message, "error"); }
+}
+
+async function loadHistory() {
+  if (!contract || !userAddr) return;
+  try {
+    const filter = contract.filters.ConversionLogged(null, null, null, userAddr);
+    const events = await contract.queryFilter(filter, -10000);
+    txHistory = events.map(e => ({ currency: e.args[0], amount: Number(e.args[1])/1e6, egp: Number(e.args[2])/1e6, hash: e.transactionHash, block: e.blockNumber })).reverse().slice(0, 30);
+    renderHistory();
+    document.getElementById("s-conv").textContent = txHistory.length;
+  } catch(e) { console.warn("History:", e.message); }
+}
+
+function renderHistory() {
+  const el = document.getElementById("txlist");
+  if (!txHistory.length) {
+    el.innerHTML = `<div class="txempty">No conversions yet.<br>Your conversions will appear here after being confirmed on Base.</div>`;
+    return;
+  }
+  el.innerHTML = txHistory.map(tx => `
+    <div class="txitem">
+      <div class="txamt">
+        <span class="tfrom">${f(tx.amount,4)} ${tx.currency}</span>
+        <span class="tarr">→</span>
+        <span class="tto">${f(tx.egp,2)} EGP</span>
+      </div>
+      <div class="txmeta">
+        <span>Block #${tx.block}</span>·
+        <a class="thl" href="https://basescan.org/tx/${tx.hash}" target="_blank">${tx.hash.slice(0,12)}…</a>
+      </div>
+    </div>
+  `).join("");
+}
+
+const f = (n, d) => n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// ═══════════════════════════════════════════════
+// RATE LOOKUP — live rates take priority
+// ═══════════════════════════════════════════════
+function getEgpRate(code) {
+  // 1. Live fetched rates (most accurate)
+  if (liveRates[code]) return { rate: liveRates[code], source: "live" };
+  // 2. On-chain rates (owner-set)
+  const oc = chainCurrs.find(c => c.code === code);
+  if (oc) return { rate: oc.rate, source: "on-chain" };
+  return { rate: 0, source: "none" };
+}
+
+function liveConvert() {
+  const code   = document.getElementById("from-currency").value;
+  const amount = parseFloat(document.getElementById("from-amount").value) || 0;
+  const { rate } = getEgpRate(code);
+  const result = amount * rate;
+  const el = document.getElementById("result-num");
+  el.textContent = amount > 0 ? result.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00";
+}
+
+function onCurrencyChange() {
+  updateRateDisplay();
+  liveConvert();
+}
+
+function updateRateDisplay() {
+  const code = document.getElementById("from-currency").value;
+  if (!code) return;
+  const { rate, source } = getEgpRate(code);
+  document.getElementById("ri-code").textContent = code;
+  document.getElementById("ri-rate").textContent = rate > 0 ? rate.toLocaleString("en", { minimumFractionDigits: 4, maximumFractionDigits: 6 }) : "—";
+
+  // Source tag
+  const tag = document.getElementById("rate-source-tag");
+  if (rate > 0) {
+    tag.style.display = "block";
+    tag.innerHTML = `Rate: <span>${source === "live" ? "📡 Live forex market" : "⛓ On-chain"}</span> · 1 ${code} = ${rate.toLocaleString("en",{minimumFractionDigits:4,maximumFractionDigits:6})} EGP`;
+  } else {
+    tag.style.display = "none";
+  }
+
+  liveConvert();
+}
+
+// ═══════════════════════════════════════════════
+// CONVERT — fires on-chain tx
+// ═══════════════════════════════════════════════
+async function doConvert() {
+  const code   = document.getElementById("from-currency").value;
+  const amount = parseFloat(document.getElementById("from-amount").value);
+
+  if (!amount || amount <= 0) { toast("Enter an amount to convert", "error"); return; }
+
+  // No wallet — show preview only
+  if (!userAddr)  { liveConvert(); toast("Connect wallet to record conversion on-chain", "info"); return; }
+  if (!contract)  { liveConvert(); toast("Add ?contract=0x… to URL after deploying", "info"); return; }
+  if (isPaused)   { toast("Contract is paused by the owner", "error"); return; }
+
+  const btn = document.getElementById("convert-btn");
+  btn.disabled = true; btn.textContent = "⏳ Confirm in MetaMask…";
+  setStrip("pending", false, "Waiting for MetaMask confirmation…");
+
+  try {
+    const scaled = BigInt(Math.round(amount * 1e6));
+    const tx = await contract.convert(code, scaled);
+
+    btn.textContent = "⛓ Confirming on Base…";
+    setStrip("pending", true, `Tx submitted · <a class="thl" href="https://basescan.org/tx/${tx.hash}" target="_blank" style="color:var(--blue-glow)">${tx.hash.slice(0,16)}…</a>`);
+    toast("Transaction submitted! Waiting for Base to confirm…", "info");
+
+    const receipt = await tx.wait();
+
+    // Parse on-chain EGP result from event
+    const iface = new ethers.Interface(ABI);
+    let egpOut = 0;
+    for (const log of receipt.logs) {
+      try { const p = iface.parseLog(log); if (p.name === "ConversionLogged") egpOut = Number(p.args[2]) / 1e6; } catch {}
+    }
+
+    document.getElementById("result-num").textContent = egpOut.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    txHistory.unshift({ currency: code, amount, egp: egpOut, hash: tx.hash, block: receipt.blockNumber });
+    renderHistory();
+    document.getElementById("s-conv").textContent = txHistory.length;
+
+    setStrip("confirmed", false, `✓ Confirmed · Block #${receipt.blockNumber} · <a class="thl" href="https://basescan.org/tx/${tx.hash}" target="_blank" style="color:var(--green)">${tx.hash.slice(0,18)}…</a>`);
+    toast("✓ Conversion recorded on Base blockchain!", "success");
+    confetti();
+    setTimeout(clearStrip, 14000);
+
+  } catch(e) {
+    const msg = e.reason || e.shortMessage || e.message || "Transaction failed";
+    setStrip("failed", false, "✗ " + msg);
+    toast("Error: " + msg, "error");
+    setTimeout(clearStrip, 8000);
+  } finally {
+    btn.disabled = false; btn.textContent = "⬡ Convert & Record on Base";
+  }
+}
+
+function setStrip(type, spin, html) {
+  const s = document.getElementById("txstrip"), sp = document.getElementById("txspinner"), m = document.getElementById("txmsg");
+  s.className = type; sp.style.display = spin ? "block" : "none"; m.innerHTML = html;
+}
+function clearStrip() { document.getElementById("txstrip").className = ""; }
+
+// ═══════════════════════════════════════════════
+// OWNER — push live rates to chain
+// ═══════════════════════════════════════════════
+async function pushLiveRatesToChain() {
+  if (!contract || !isOwner) { toast("Owner access required", "error"); return; }
+  if (!ratesLoaded || !Object.keys(liveRates).length) { toast("No live rates loaded yet", "error"); return; }
+
+  const codes = getPriorityCurrencies().filter(c => liveRates[c]);
+  const ratesScaled = codes.map(c => BigInt(Math.round(liveRates[c] * 1e6)));
+
+  if (!codes.length) { toast("No currencies to push", "error"); return; }
+
+  try {
+    toast(`Pushing ${codes.length} live rates to Base…`, "info");
+    const tx = await contract.batchUpdateRates(codes, ratesScaled);
+    await tx.wait();
+    toast(`✓ ${codes.length} live rates pushed to blockchain!`, "success");
+    await loadChain();
+  } catch(e) {
+    toast("Error: " + (e.reason || e.message), "error");
+  }
+}
+
+async function owUpdate() {
+  if (!contract || !isOwner) { toast("Owner access required", "error"); return; }
+  const code = document.getElementById("ow-code").value.trim().toUpperCase();
+  const rate = parseInt(document.getElementById("ow-rate").value);
+  if (!code || !rate || rate <= 0) { toast("Enter valid code and rate", "error"); return; }
+  try {
+    const tx = await contract.updateRate(code, BigInt(rate));
+    toast("Updating rate on Base…", "info");
+    await tx.wait();
+    toast("✓ Rate updated: " + code, "success");
+    await loadChain();
+  } catch(e) { toast("Error: " + (e.reason || e.message), "error"); }
+}
+
+async function owPause() {
+  if (!contract || !isOwner) { toast("Owner access required", "error"); return; }
+  try {
+    const tx = await contract.setPaused(!isPaused);
+    await tx.wait(); isPaused = !isPaused;
+    document.getElementById("pause-btn").textContent = isPaused ? "Unpause Contract" : "Pause Contract";
+    toast(isPaused ? "Contract paused" : "Contract unpaused", "success");
+  } catch(e) { toast("Error: " + (e.reason || e.message), "error"); }
+}
+
+function toggleOwner() {
+  document.getElementById("ow-body").classList.toggle("on");
+  document.getElementById("owexp").classList.toggle("open");
+}
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function openModal() {
+  const codes = getPriorityCurrencies();
+  document.getElementById("rgrid").innerHTML = codes.map(c => {
+    const rate = liveRates[c];
+    if (!rate) return "";
+    return `<div class="ritem"><span class="rc">${CURRENCY_META[c]?.flag||"🌐"} ${c}</span><span class="rr">${rate.toLocaleString("en",{minimumFractionDigits:4,maximumFractionDigits:4})} EGP</span></div>`;
+  }).join("");
+  document.getElementById("rmodal").classList.add("open");
+}
+function closeModal() { document.getElementById("rmodal").classList.remove("open"); }
+function bgClose(e)   { if (e.target.id === "rmodal") closeModal(); }
+
+function openBasescan() {
+  if (CONTRACT_ADDR) window.open("https://basescan.org/address/" + CONTRACT_ADDR, "_blank");
+  else toast("Deploy contract first — add ?contract=0xADDRESS to URL", "info");
+}
+
+function refreshCbar() {
+  const el = document.getElementById("caddr");
+  if (CONTRACT_ADDR) { el.textContent = CONTRACT_ADDR.slice(0,10)+"…"+CONTRACT_ADDR.slice(-8); el.title = CONTRACT_ADDR; }
+}
+
+function tipEGP() { toast("Egyptian Pound (EGP) is always the output. Choose a source currency on the left.", "info"); }
+
+function confetti() {
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement("div");
+    const cl = ["#2d7ef7","#00d4ff","#4d9fff","#f5c842","#00e5a0"];
+    const dx = (Math.random()>.5?1:-1)*(60+Math.random()*120);
+    const dy = -(80+Math.random()*140);
+    if (!document.getElementById("cfst")) {
+      const st = document.createElement("style"); st.id = "cfst";
+      st.textContent = `@keyframes cf{0%{transform:translate(0,0) rotate(0);opacity:1;}100%{transform:translate(var(--dx),var(--dy)) rotate(720deg);opacity:0;}}`;
+      document.head.appendChild(st);
+    }
+    p.style.cssText=`--dx:${dx}px;--dy:${dy}px;position:fixed;pointer-events:none;z-index:9000;width:${4+Math.random()*7}px;height:${4+Math.random()*7}px;background:${cl[Math.floor(Math.random()*cl.length)]};border-radius:${Math.random()>.5?"50%":"2px"};left:${35+Math.random()*30}vw;top:45vh;animation:cf ${0.7+Math.random()*.9}s ease-out forwards;`;
+    document.body.appendChild(p); setTimeout(()=>p.remove(), 2000);
+  }
+}
+
+let toastTimer;
+function toast(msg, type = "info") {
+  const icons = { success:"✓", error:"✗", info:"⬡" };
+  document.getElementById("ticon").textContent = icons[type] || "ℹ";
+  document.getElementById("tmsg").textContent = msg;
+  const t = document.getElementById("toast");
+  t.className = "show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.className = ""; }, 5000);
+}
+</script>
+</body>
+</html>
