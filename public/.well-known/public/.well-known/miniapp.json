@@ -1,0 +1,6 @@
+{
+  "name": "EGP Converter",
+  "description": "Convert currencies to Egyptian Pound onchain",
+  "url": "https://egp-converter.vercel.app",
+  "icon": "https://egp-converter.vercel.app/icon.png"
+}
