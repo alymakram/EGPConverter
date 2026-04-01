@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EGP Converter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body style="font-family:sans-serif; text-align:center; padding:20px;">
+
+<h2>EGP Converter (Base Mini App)</h2>
+
+<input id="amount" placeholder="Amount (e.g. 1.5)" />
+<select id="currency">
+  <option value="USD">USD</option>
+  <option value="EUR">EUR</option>
+  <option value="SAR">SAR</option>
+</select>
+
+<br><br>
+
+<button onclick="preview()">Preview (Free)</button>
+<button onclick="convertOnchain()">Convert Onchain</button>
+
+<p id="result"></p>
+
+<script type="module">
+import { MiniKit } from 'https://cdn.jsdelivr.net/npm/@coinbase/onchainkit/+esm';
+import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.7.0/+esm';
+
+// ✅ Initialize Mini App
+await MiniKit.ready();
+
+const provider = await MiniKit.getProvider();
+const signer = await provider.getSigner();
+
+// ✅ YOUR CONTRACT ADDRESS (UPDATED)
+const contractAddress = "0xBFc3699576b45631D9889fa1bC7541810918A5c9";
+
+const abi = [
+  "function convertView(string,uint256) view returns (uint256)",
+  "function convertAndSave(string,uint256) returns (uint256)"
+];
+
+const contract = new ethers.Contract(contractAddress, abi, signer);
+
+// 🔍 Preview (free)
+window.preview = async () => {
+  const currency = document.getElementById("currency").value;
+  const amount = parseFloat(document.getElementById("amount").value);
+
+  if (!amount || amount <= 0) {
+    alert("Enter valid amount");
+    return;
+  }
+
+  const scaled = Math.floor(amount * 1e6);
+
+  const result = await contract.convertView(currency, scaled);
+
+  document.getElementById("result").innerText =
+    "Preview: " + (Number(result) / 1e6) + " EGP";
+};
+
+// 🔥 Onchain transaction
+window.convertOnchain = async () => {
+  try {
+    const currency = document.getElementById("currency").value;
+    const amount = parseFloat(document.getElementById("amount").value);
+
+    if (!amount || amount <= 0) {
+      alert("Enter valid amount");
+      return;
+    }
+
+    const scaled = Math.floor(amount * 1e6);
+
+    document.getElementById("result").innerText = "Waiting for wallet...";
+
+    const tx = await contract.convertAndSave(currency, scaled);
+
+    document.getElementById("result").innerText = "Processing transaction...";
+
+    await tx.wait();
+
+    document.getElementById("result").innerText = "✅ Saved onchain!";
+  } catch (err) {
+    console.error(err);
+    document.getElementById("result").innerText = "❌ Transaction failed";
+  }
+};
+</script>
+
+</body>
+</html>
